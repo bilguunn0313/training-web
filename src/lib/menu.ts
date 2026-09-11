@@ -1,10 +1,12 @@
 import api from "./axios";
+import { MealSession } from "@/types/schema.types";
 
 interface MenuItemPayload {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
   itemType: "meal_1" | "meal_2" | "drink";
+  mealSession?: MealSession;
   ingredients?: string | null;
   calories?: number | null;
 }
@@ -60,24 +62,15 @@ export const menuAPI = {
     const res = await api.delete(`/menu/items/${itemId}`);
     return res.data;
   },
-  respond: async (menuId: number, willAttend: boolean) => {
-    const res = await api.post(`/menu/${menuId}/respond`, { willAttend });
+  // ─── Хоолны бүртгэл ───────────────────────────────────────────────
+  // Бүх бүртгэл kiosk-аар дамждаг тул энд зөвхөн унших зам байна.
+  getCount: async (date: string) => {
+    const res = await api.get(`/menu/count/${date}`);
     return res.data;
   },
-  cancelResponse: async (menuId: number) => {
-    const res = await api.delete(`/menu/${menuId}/respond`);
-    return res.data;
-  },
-  getMyResponse: async (menuId: number) => {
-    const res = await api.get(`/menu/${menuId}/my-response`);
-    return res.data;
-  },
-  getResponseSummary: async (menuId: number) => {
-    const res = await api.get(`/menu/${menuId}/response-summary`);
-    return res.data;
-  },
-  getAllResponses: async (menuId: number) => {
-    const res = await api.get(`/menu/${menuId}/responses`);
+  /** Тогооч андуурч дарсан kiosk бүртгэлийг хасах (−1). */
+  removeKioskTap: async (date: string, session: MealSession) => {
+    const res = await api.delete(`/menu/kiosk-tap/${date}/${session}`);
     return res.data;
   },
 };

@@ -33,7 +33,7 @@ import { Loader2 } from "lucide-react";
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
-  role: z.enum(["user", "admin", "chief", "supervisor"]),
+  role: z.enum(["user", "admin", "chief", "supervisor", "accountant"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -74,7 +74,12 @@ export function EditUserDialog({
       form.reset({
         name: user.name,
         email: user.email,
-        role: user.role as "user" | "admin" | "chief" | "supervisor",
+        role: user.role as
+          | "user"
+          | "admin"
+          | "chief"
+          | "supervisor"
+          | "accountant",
       });
     }
   }, [user, isOpen, form]);
@@ -158,6 +163,7 @@ export function EditUserDialog({
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="chief">Chief</SelectItem>
                       <SelectItem value="supervisor">Supervisor</SelectItem>
+                      <SelectItem value="accountant">Accountant</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -12,10 +12,11 @@ import {
   LogOut,
   BookOpen,
   Thermometer,
-  CircleGauge,
+  // CircleGauge, — Машин картыг түр хаасан
   Settings,
   ClipboardList,
   Monitor,
+  Package,
 } from "lucide-react";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -23,6 +24,7 @@ const ROLE_LABEL: Record<string, string> = {
   admin: "Админ",
   chief: "Менежер",
   supervisor: "Хянагч",
+  accountant: "Нягтлан",
 };
 
 function formatDate(): string {
@@ -145,6 +147,7 @@ export default function HomePage() {
               </p>
             </Link>
 
+            {/* Машин — түр хаасан
             <Link
               href="/tire-condition"
               className="group rounded-xl border border-t-2 border-t-amber-400 bg-card p-9 hover:border-amber-200 hover:border-t-amber-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up delay-400"
@@ -160,6 +163,27 @@ export default function HomePage() {
                 Машины дугуйн нөхцөл байдал
               </p>
             </Link>
+            */}
+
+            {(user?.role === "admin" ||
+              user?.role === "accountant" ||
+              user?.role === "chief") && (
+              <Link
+                href="/inventory"
+                className="group rounded-xl border border-t-2 border-t-emerald-400 bg-card p-9 hover:border-emerald-200 hover:border-t-emerald-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up delay-500"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <Package className="h-7 w-7 text-emerald-600" />
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                </div>
+                <h2 className="font-semibold text-lg">Хүнсний нөөц</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                  Материалын үлдэгдэл, орлого зарлага, тооллого
+                </p>
+              </Link>
+            )}
 
             {user?.role === "admin" && (
               <Link

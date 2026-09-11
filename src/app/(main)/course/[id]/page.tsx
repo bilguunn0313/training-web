@@ -357,6 +357,13 @@ const CourseDetailPage = () => {
                     controls
                     className="w-full h-full"
                     controlsList="nodownload"
+                    // Хичээл сонгох бүрд бүтэн файлыг татахгүй, зөвхөн метадата уншина
+                    preload="metadata"
+                    // iOS дээр тоглуулахад автоматаар fullscreen руу үсрэхээс сэргийлнэ
+                    playsInline
+                    poster={
+                      getFullVideoUrl(course?.thumbnail_url ?? null) || undefined
+                    }
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onError={(e) => {

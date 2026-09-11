@@ -9,11 +9,16 @@ import { ImageUpload } from "@/components/ImageUpload";
 import {
   useMenuByDate,
   useMonthlyMenus,
-  useMenuResponses,
+  useMenuCount,
 } from "@/hooks/useMenu";
 import { menuAPI } from "@/lib/menu";
 import { useDishes } from "@/hooks/useDishes";
-import { Dish } from "@/types/schema.types";
+import { Dish, MealSession } from "@/types/schema.types";
+import {
+  SESSIONS,
+  SESSION_CONFIG,
+  CHOICE_CONFIG,
+} from "@/lib/menu-config";
 import { toast } from "sonner";
 import {
   Plus,
@@ -30,6 +35,8 @@ import {
   BookOpen,
   Search,
   PenLine,
+  ChefHat,
+  Minus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -54,12 +61,17 @@ interface ItemFormData {
   name: string;
   imageUrl: string;
   itemType: "meal_1" | "meal_2" | "drink";
+  mealSession: MealSession;
 }
 
-const EMPTY_ITEM = (type: "meal_1" | "meal_2" | "drink"): ItemFormData => ({
+const EMPTY_ITEM = (
+  type: "meal_1" | "meal_2" | "drink",
+  session: MealSession,
+): ItemFormData => ({
   name: "",
   imageUrl: "",
   itemType: type,
+  mealSession: session,
 });
 
 const ITEM_TYPE_CONFIG: Record<
@@ -109,14 +121,13 @@ function MenuManageContent() {
     loading: dayLoading,
     refetch: refetchDay,
   } = useMenuByDate(selectedDate);
-  const { responses, loading: responsesLoading } = useMenuResponses(
-    menu?.id ?? null,
-  );
+  const { count, removingTap, removeKioskTap } = useMenuCount(selectedDate);
 
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemFormData[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editSession, setEditSession] = useState<MealSession>("lunch");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerType, setPickerType] = useState<"meal_1" | "meal_2" | "drink">("meal_1");
   const [pickerSearch, setPickerSearch] = useState("");
@@ -129,6 +140,7 @@ function MenuManageContent() {
           name: item.name,
           imageUrl: item.image_url || "",
           itemType: item.item_type,
+          mealSession: item.meal_session,
         })),
       );
     } else {
@@ -151,7 +163,7 @@ function MenuManageContent() {
   };
 
   const handleAddManualItem = (type: "meal_1" | "meal_2" | "drink") => {
-    setItems((prev) => [...prev, EMPTY_ITEM(type)]);
+    setItems((prev) => [...prev, EMPTY_ITEM(type, editSession)]);
     setPickerOpen(false);
   };
 
@@ -162,6 +174,7 @@ function MenuManageContent() {
         name: dish.name,
         imageUrl: dish.image_url || "",
         itemType: type,
+        mealSession: editSession,
       },
     ]);
     setPickerOpen(false);
@@ -197,6 +210,7 @@ function MenuManageContent() {
           name: i.name,
           imageUrl: i.imageUrl || null,
           itemType: i.itemType,
+          mealSession: i.mealSession,
         })),
       };
 
@@ -243,8 +257,14 @@ function MenuManageContent() {
       })()
     : "";
 
-  const attendingCount = responses.filter((r) => r.will_attend).length;
-  const notAttendingCount = responses.filter((r) => !r.will_attend).length;
+  const handleRemoveTap = async (session: MealSession) => {
+    try {
+      await removeKioskTap(session);
+      toast.success("Нэг бүртгэл хасагдлаа");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Хасахад алдаа гарлаа");
+    }
+  };
 
   if (!mounted) {
     return (
@@ -313,118 +333,10 @@ function MenuManageContent() {
                       : "Цэс байхгүй — шинээр үүсгэх"}
                   </p>
                 </div>
-                {menu && (
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors">
-                          <Users className="h-4 w-4" />
-                          <span className="hidden sm:inline">Хариултууд</span>
-                          {!responsesLoading && responses.length > 0 && (
-                            <span className="text-[11px] font-semibold bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
-                              {responses.length}
-                            </span>
-                          )}
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-lg">
-                        <DialogHeader>
-                          <DialogTitle>
-                            Хариултууд — {displayDate}
-                          </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="flex gap-2 mb-4">
-                          <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-                            <span className="w-2 h-2 rounded-full bg-green-500" />
-                            <span className="text-sm font-semibold text-green-700">
-                              {attendingCount} идэх
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
-                            <span className="w-2 h-2 rounded-full bg-red-400" />
-                            <span className="text-sm font-semibold text-red-600">
-                              {notAttendingCount} идэхгүй
-                            </span>
-                          </div>
-                        </div>
-
-                        {responsesLoading ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
-                          </div>
-                        ) : responses.length === 0 ? (
-                          <div className="text-center py-8">
-                            <Users className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">
-                              Хариу ирээгүй байна
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="overflow-y-auto max-h-[400px] -mx-1">
-                            <table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-white z-10">
-                                <tr className="border-b border-border">
-                                  <th className="text-left py-2.5 px-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                                    Нэр
-                                  </th>
-                                  <th className="text-left py-2.5 px-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                                    Имэйл
-                                  </th>
-                                  <th className="text-center py-2.5 px-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                                    Хариу
-                                  </th>
-                                  <th className="text-right py-2.5 px-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                                    Хугацаа
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {responses.map((r) => (
-                                  <tr
-                                    key={r.id}
-                                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
-                                  >
-                                    <td className="py-2.5 px-2 text-foreground font-medium">
-                                      {r.user_name}
-                                    </td>
-                                    <td className="py-2.5 px-2 text-muted-foreground">
-                                      {r.user_email}
-                                    </td>
-                                    <td className="py-2.5 px-2 text-center">
-                                      {r.will_attend ? (
-                                        <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md text-xs font-semibold">
-                                          <Check className="h-3 w-3" />
-                                          Идэх
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md text-xs font-semibold">
-                                          <X className="h-3 w-3" />
-                                          Идэхгүй
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-2.5 px-2 text-right text-muted-foreground text-xs">
-                                      {new Date(
-                                        r.updated_at,
-                                      ).toLocaleString("mn-MN", {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
-
-                    <div className="w-px h-5 bg-border" />
-
+                {/* Бүртгэл нь хоолны газрын kiosk дээр хийгддэг тул энд
+                    нэрсийн жагсаалт байхгүй — доорх тоо нь бодит бүртгэл. */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {menu && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button
@@ -458,14 +370,93 @@ function MenuManageContent() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Status indicator */}
               {menu && (
                 <div className="h-1 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400" />
               )}
+            </div>
+
+            {/* Порцын тоо — тогоочийн гол мэдээлэл.
+                Хүний тоо ба порцын тоо ӨӨР: "Бүгд" сонгосон хүн нэг хүн
+                боловч хоёр порц эзэлдэг. */}
+            <div className="bg-card rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <ChefHat className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Хэдэн порц чанах вэ
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {SESSIONS.map((session) => {
+                  const c = count?.[session];
+                  const people = c?.people ?? 0;
+                  const m1 = c?.meal_1 ?? 0;
+                  const m2 = c?.meal_2 ?? 0;
+                  const both = m1 + m2 - people;
+
+                  return (
+                    <div
+                      key={session}
+                      className="rounded-xl border border-border bg-muted/20 p-4"
+                    >
+                      <div className="flex items-baseline justify-between mb-3">
+                        <span className="text-sm font-semibold text-foreground">
+                          {SESSION_CONFIG[session].label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {people} хүн
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <div className="flex-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                            1-р хоол
+                          </p>
+                          <p className="text-2xl font-bold text-amber-800 tabular-nums">
+                            {m1}
+                          </p>
+                        </div>
+                        <div className="flex-1 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">
+                            2-р хоол
+                          </p>
+                          <p className="text-2xl font-bold text-orange-800 tabular-nums">
+                            {m2}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted-foreground leading-tight">
+                          нийт {m1 + m2} порц
+                          {both > 0 && ` · ${both} хүн бүгдийг авна`}
+                        </p>
+                        {people > 0 && (
+                          <button
+                            onClick={() => handleRemoveTap(session)}
+                            disabled={removingTap}
+                            title="Kiosk дээр андуурч дарсныг хасах"
+                            className="flex items-center gap-1 flex-shrink-0 text-[11px] font-medium text-muted-foreground hover:text-red-600 border border-border hover:border-red-200 hover:bg-red-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {removingTap ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Minus className="h-3 w-3" />
+                            )}
+                            Засах
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {dayLoading ? (
@@ -488,13 +479,45 @@ function MenuManageContent() {
                   />
                 </div>
 
-                {/* Item Slots by Type */}
+                {/* Өглөө / Өдөр — тус тусдаа цэстэй */}
+                <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+                  {SESSIONS.map((session) => {
+                    const filled = items.filter(
+                      (i) => i.mealSession === session && i.name.trim(),
+                    ).length;
+
+                    return (
+                      <button
+                        key={session}
+                        onClick={() => setEditSession(session)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          editSession === session
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {SESSION_CONFIG[session].label}
+                        {filled > 0 && (
+                          <span className="text-xs font-semibold bg-muted px-1.5 py-0.5 rounded">
+                            {filled}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Item Slots by Type — идэвхтэй сешний зүйлс */}
                 {(["meal_1", "meal_2", "drink"] as const).map((type) => {
                   const config = ITEM_TYPE_CONFIG[type];
                   const Icon = config.icon;
                   const typeItems = items
                     .map((item, idx) => ({ item, idx }))
-                    .filter(({ item }) => item.itemType === type);
+                    .filter(
+                      ({ item }) =>
+                        item.itemType === type &&
+                        item.mealSession === editSession,
+                    );
 
                   return (
                     <div
