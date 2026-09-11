@@ -43,8 +43,15 @@ export const lessonAPI = {
     id: number,
     file: File,
     onProgress?: (progress: number) => void,
+    durationSeconds?: number | null,
   ) => {
     const formData = new FormData();
+    // Файлын ӨМНӨ нэмнэ — сервер талд busboy талбаруудыг ирсэн дарааллаар нь
+    // задалдаг тул текст талбар нь файлын ард үлдвэл боловсруулалт удаан болно.
+    // Сервер дээр ffprobe унасан үед энэ утга нөөц болж ашиглагдана.
+    if (durationSeconds != null && durationSeconds > 0) {
+      formData.append("duration", String(Math.round(durationSeconds)));
+    }
     formData.append("video", file);
 
     const response = await api.post(`/lesson/${id}/upload-video`, formData, {

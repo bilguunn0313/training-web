@@ -36,6 +36,9 @@ export interface Lesson {
   text: string | null;
 }
 
+export type MealSession = "breakfast" | "lunch";
+export type MealChoice = "meal_1" | "meal_2" | "both";
+
 export interface MenuItem {
   id: number;
   daily_menu_id: number;
@@ -43,6 +46,7 @@ export interface MenuItem {
   description: string | null;
   image_url: string | null;
   item_type: "meal_1" | "meal_2" | "drink";
+  meal_session: MealSession;
   ingredients: string | null;
   calories: number | null;
   created_at: string;
@@ -60,24 +64,23 @@ export interface DailyMenu {
   items: MenuItem[];
 }
 
-export interface MenuResponse {
-  id: number;
-  daily_menu_id: number;
-  user_id: number;
-  will_attend: boolean;
-  created_at: string;
-  updated_at: string;
+/**
+ * Нэг сешний тоо. Хүмүүс маргаашийн төлөө kiosk дээр урьдчилан бүртгүүлдэг.
+ *   people — хэдэн ХҮН иднэ
+ *   meal_1 / meal_2 — хэдэн ПОРЦ чанах вэ ("both" нь хоёуланд ордог)
+ * meal_1 + meal_2 нь people-ээс их байж болно; зөрүү нь "both" сонгосон
+ * хүмүүсийн тоо. Алдаа биш.
+ */
+export interface MenuSessionCount {
+  session: MealSession;
+  people: number;
+  meal_1: number;
+  meal_2: number;
 }
 
-export interface MenuResponseWithUser extends MenuResponse {
-  user_name: string;
-  user_email: string;
-}
-
-export interface MenuResponseSummary {
-  total: number;
-  attending: number;
-  not_attending: number;
+export interface MenuCount {
+  breakfast: MenuSessionCount;
+  lunch: MenuSessionCount;
 }
 
 export interface Dish {
@@ -256,3 +259,92 @@ export interface CreateVehicleData {
 }
 
 export type UpdateVehicleData = Partial<CreateVehicleData>;
+
+// ── Inventory (хүнсний материалын нөөц) ──────────────────────────────────
+
+export type TransactionType = "receipt" | "issue" | "adjustment";
+
+export interface Material {
+  id: number;
+  name: string;
+  unit: string;
+  category: string | null;
+  odoo_product_id: number | null;
+  is_active: boolean;
+  created_by: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaterialBalance {
+  id: number;
+  name: string;
+  unit: string;
+  category: string | null;
+  balance: number;
+  avg_price: number | null;
+  balance_value: number;
+}
+
+export interface MaterialTransaction {
+  id: number;
+  material_id: number;
+  tx_type: TransactionType;
+  quantity: number;
+  unit_price: number | null;
+  tx_date: string;
+  note: string | null;
+  stock_count_id: number | null;
+  created_by: number;
+  created_by_name?: string;
+  material_name?: string;
+  material_unit?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockCount {
+  id: number;
+  count_date: string;
+  period_year: number;
+  period_month: number;
+  status: "draft" | "closed";
+  notes: string | null;
+  created_by: number;
+  created_by_name?: string;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockCountLine {
+  id: number;
+  stock_count_id: number;
+  material_id: number;
+  system_quantity: number;
+  counted_quantity: number;
+  difference: number;
+  note: string | null;
+  material_name?: string;
+  material_unit?: string;
+  material_category?: string | null;
+}
+
+export interface StockCountWithLines extends StockCount {
+  lines: StockCountLine[];
+}
+
+export interface MonthlyReportRow {
+  material_id: number;
+  name: string;
+  unit: string;
+  category: string | null;
+  opening_quantity: number;
+  receipt_quantity: number;
+  issue_quantity: number;
+  adjustment_quantity: number;
+  closing_quantity: number;
+  avg_price: number | null;
+  closing_value: number;
+}

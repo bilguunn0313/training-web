@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { MenuCalendar } from "@/components/MenuCalendar";
-import { MenuRSVP } from "@/components/MenuRSVP";
-import { useMenuByDate, useMonthlyMenus } from "@/hooks/useMenu";
+import { useMenuByDate, useMonthlyMenus, useMenuCount } from "@/hooks/useMenu";
+import { SESSIONS, SESSION_CONFIG } from "@/lib/menu-config";
 import { useUserContext } from "@/lib/userProvider";
 import { MenuItem } from "@/types/schema.types";
 import {
@@ -99,6 +99,51 @@ function MenuItemCard({ item }: { item: MenuItem }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Тухайн өдөр хэдэн хүн иднэ.
+ * Бүртгэл нь хоолны газрын kiosk дээр хийгддэг тул энэ хуудас зөвхөн
+ * харуулна — энд дарж бүртгүүлэх боломжгүй.
+ */
+function MenuDayCount({ date }: { date: string }) {
+  const { count, loading } = useMenuCount(date);
+
+  if (loading || !count) return null;
+
+  const total = count.breakfast.people + count.lunch.people;
+  if (total === 0) return null;
+
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Хэдэн хүн иднэ
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        {SESSIONS.map((session) => {
+          const c = count[session];
+          return (
+            <div
+              key={session}
+              className="rounded-xl border border-border bg-muted/20 px-4 py-3"
+            >
+              <p className="text-xs text-muted-foreground">
+                {SESSION_CONFIG[session].label}
+              </p>
+              <p className="text-2xl font-bold text-foreground tabular-nums mt-0.5">
+                {c.people}
+              </p>
+              {c.people > 0 && (
+                <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                  1-р {c.meal_1} · 2-р {c.meal_2}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -237,58 +282,57 @@ export default function MenuPage() {
                 </div>
               )}
 
-              {!dayLoading && !menu && (
-                <div className="rounded-2xl border-2 border-dashed border-border py-16 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
-                    <UtensilsCrossed className="h-7 w-7 text-muted-foreground/30" />
-                  </div>
-                  <p className="text-muted-foreground font-medium">
-                    Энэ өдөр цэс байхгүй байна
-                  </p>
-                  <p className="text-sm text-muted-foreground/60 mt-1">
-                    Өөр өдөр сонгоно уу
-                  </p>
-                </div>
-              )}
-
-              {menu && grouped && (
+              {!dayLoading && (
                 <div className="space-y-5">
-                  {menu.notes && (
+                  {!menu && (
+                    <div className="rounded-2xl border-2 border-dashed border-border py-12 text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                        <UtensilsCrossed className="h-7 w-7 text-muted-foreground/30" />
+                      </div>
+                      <p className="text-muted-foreground font-medium">
+                        Энэ өдөр цэс бүртгэгдээгүй байна
+                      </p>
+                      <p className="text-sm text-muted-foreground/60 mt-1">
+                        Гал тогоо цэс оруулсны дараа энд харагдана
+                      </p>
+                    </div>
+                  )}
+
+                  {menu?.notes && (
                     <div className="bg-brand-50/60 border border-brand-200 rounded-xl px-4 py-3 text-sm text-brand-700 font-medium">
                       {menu.notes}
                     </div>
                   )}
 
                   {/* Food sections */}
-                  {(["meal_1", "meal_2", "drink"] as const).map((type) => {
-                    if (grouped[type].length === 0) return null;
-                    const config = ITEM_TYPE_CONFIG[type];
-                    const Icon = config.icon;
+                  {grouped &&
+                    (["meal_1", "meal_2", "drink"] as const).map((type) => {
+                      if (grouped[type].length === 0) return null;
+                      const config = ITEM_TYPE_CONFIG[type];
+                      const Icon = config.icon;
 
-                    return (
-                      <section key={type}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg border ${config.accent}`}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                            {config.label}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                          {grouped[type].map((item) => (
-                            <MenuItemCard key={item.id} item={item} />
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  })}
+                      return (
+                        <section key={type}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span
+                              className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-lg border ${config.accent}`}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                              {config.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                            {grouped[type].map((item) => (
+                              <MenuItemCard key={item.id} item={item} />
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
 
-                  {/* RSVP — after seeing the food */}
-                  <MenuRSVP
-                    menuId={menu.id}
-                    menuDate={menu.menu_date.split("T")[0]}
-                  />
+                  {/* Бүртгэл нь хоолны газрын kiosk дээр хийгддэг тул энд
+                      зөвхөн тухайн өдөр хэдэн хүн идэхийг харуулна. */}
+                  <MenuDayCount date={selectedDate} />
                 </div>
               )}
             </div>

@@ -36,7 +36,14 @@ export default function AdminUsersPage() {
         limit: 20,
         search: search || undefined,
         role:
-          roleFilter !== "all" ? (roleFilter as "admin" | "user" | "chief" | "supervisor") : undefined,
+          roleFilter !== "all"
+            ? (roleFilter as
+                | "admin"
+                | "user"
+                | "chief"
+                | "supervisor"
+                | "accountant")
+            : undefined,
       });
       return response;
     },
@@ -52,6 +59,7 @@ export default function AdminUsersPage() {
         { label: "User", value: "user" },
         { label: "Chief", value: "chief" },
         { label: "Supervisor", value: "supervisor" },
+        { label: "Accountant", value: "accountant" },
       ],
       onChange: setRoleFilter,
       currentValue: roleFilter,
@@ -119,6 +127,8 @@ export default function AdminUsersPage() {
               ? "bg-brand-100 text-brand-800"
               : user.role === "supervisor"
               ? "bg-cyan-100 text-cyan-800"
+              : user.role === "accountant"
+              ? "bg-emerald-100 text-emerald-800"
               : "bg-gray-100 text-gray-800"
           }`}
         >

@@ -61,6 +61,9 @@ export function CreateEditLessonDialog({
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  // Файл 100% илгээгдсэний дараа сервер тал дээр remux/хугацаа тооцоолол
+  // ажилладаг. Энэ хугацаанд progress bar гацсан мэт харагдахаас сэргийлнэ.
+  const [processing, setProcessing] = useState(false);
   const [pendingPdfFiles, setPendingPdfFiles] = useState<File[]>([]);
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
   const [existingVideoDuration, setExistingVideoDuration] = useState<
@@ -255,10 +258,22 @@ export function CreateEditLessonDialog({
       if (videoFile && lessonId) {
         setUploading(true);
         try {
-          await lessonAPI.uploadVideo(lessonId, videoFile, (progress) => {
-            setUploadProgress(progress);
-          });
+          const result = await lessonAPI.uploadVideo(
+            lessonId,
+            videoFile,
+            (progress) => {
+              setUploadProgress(progress);
+              // 100% гэдэг нь файл серверт очсон гэсэн үг — цаана нь боловсруулалт
+              // үргэлжилж байгааг хэрэглэгчид мэдэгдэнэ.
+              if (progress >= 100) setProcessing(true);
+            },
+            videoDuration ? parseInt(videoDuration) : null,
+          );
           toast.success("Видео амжилттай хуулагдлаа!");
+
+          if (result?.warning) {
+            toast.warning(result.warning, { duration: 10000 });
+          }
 
           // Refresh the page to update the UI
           router.refresh();
@@ -278,6 +293,7 @@ export function CreateEditLessonDialog({
           }
         } finally {
           setUploading(false);
+          setProcessing(false);
           setUploadProgress(0);
         }
       }
@@ -525,10 +541,20 @@ export function CreateEditLessonDialog({
               {uploading && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Видео хуулж байна...</span>
+                    <span>
+                      {processing
+                        ? "Сервер боловсруулж байна..."
+                        : "Видео хуулж байна..."}
+                    </span>
                     <span>{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} />
+                  {processing && (
+                    <p className="text-xs text-muted-foreground">
+                      Видеог вэбэд тохируулж байна. Энэ цонхыг хаахгүй байна уу —
+                      том файлын хувьд хэдэн минут үргэлжилж болно.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
