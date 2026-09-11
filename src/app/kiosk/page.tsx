@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Check, Loader2, TriangleAlert } from "lucide-react";
+import { Check, Loader2, TriangleAlert, Undo2 } from "lucide-react";
 import { kioskAPI, PublicMenu } from "@/lib/kiosk";
 import {
   SESSIONS,
@@ -28,7 +28,7 @@ import { MealChoice, MealSession } from "@/types/schema.types";
 // үед агшиж, доор нь порцын сонголт орж ирнэ.
 
 const REFRESH_MS = 60_000;
-const CONFIRM_MS = 2_000;
+const CONFIRM_MS = 4_000;
 // Амжилтгүй болсныг уншиж ойлгоход амжилтаас илүү хугацаа хэрэгтэй
 const FAILURE_MS = 4_000;
 // Хагас нээлттэй орхиод явбал дараагийн хүн буруу сешнд бүртгүүлэхээс сэргийлнэ
@@ -37,6 +37,7 @@ const COLLAPSE_MS = 15_000;
 interface Confirmation {
   session: MealSession;
   choice: MealChoice;
+  tapId: number;
 }
 
 export default function KioskPage() {
@@ -152,13 +153,33 @@ export default function KioskPage() {
       const result = await kioskAPI.tap(menu.date, session, choice);
       setMenu((prev) => (prev ? { ...prev, count: result.count } : prev));
       setExpanded(null);
-      setConfirmation({ session, choice });
+      setConfirmation({ session, choice, tapId: result.tapId });
       confirmTimer.current = setTimeout(() => setConfirmation(null), CONFIRM_MS);
     } catch (err) {
       // Даралт унасныг ЗААВАЛ хэлэх ёстой. Эс тэгвэл хүн андуурч дарсан
       // гэж бодоод дахин дарах ба тоо нь бүртгэгдэхгүй хэвээр үлдэнэ.
       setExpanded(null);
       setFailure(err instanceof Error ? err.message : "Алдаа гарлаа");
+      failureTimer.current = setTimeout(() => setFailure(null), FAILURE_MS);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  // Андуурч дарсныг тухайн хүн ӨӨРӨӨ засна. Нэр хадгалдаггүй тул тогооч
+  // хэн андуурсныг мэдэхгүй — өөрөө засах нь цорын ганц бодит арга.
+  const handleUndo = async () => {
+    if (pending || !menu || !confirmation) return;
+    setPending(true);
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+
+    try {
+      const result = await kioskAPI.undo(menu.date, confirmation.tapId);
+      setMenu((prev) => (prev ? { ...prev, count: result.count } : prev));
+      setConfirmation(null);
+    } catch (err) {
+      setConfirmation(null);
+      setFailure(err instanceof Error ? err.message : "Буцаахад алдаа гарлаа");
       failureTimer.current = setTimeout(() => setFailure(null), FAILURE_MS);
     } finally {
       setPending(false);
@@ -221,6 +242,16 @@ export default function KioskPage() {
         <p className="mt-[1vmin] text-[length:var(--k-hero-sub)] text-white/60">
           {dish ?? CHOICE_CONFIG[confirmation.choice].label}
         </p>
+
+        <button
+          onClick={handleUndo}
+          disabled={pending}
+          className="mt-[5vmin] flex items-center gap-3 rounded-2xl border-4 border-white/40 px-[4vmin] py-[2vmin] text-[length:var(--k-hero-sub)] font-bold text-white transition-all duration-150 active:scale-[0.97] active:bg-white/15 disabled:opacity-50"
+        >
+          <Undo2 className="h-[var(--k-icon-sm)] w-[var(--k-icon-sm)]" />
+          Буцаах
+        </button>
+
         <KioskStyles />
       </div>
     );

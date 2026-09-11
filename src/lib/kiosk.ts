@@ -50,8 +50,15 @@ export const kioskAPI = {
   getMenu: (date: string) => request<PublicMenu>(`/public/menu/${date}`),
 
   tap: (date: string, session: MealSession, choice: MealChoice) =>
-    request<{ count: MenuCount }>("/public/menu/tap", {
+    request<{ tapId: number; count: MenuCount }>("/public/menu/tap", {
       method: "POST",
       body: JSON.stringify({ date, session, choice }),
+    }),
+
+  /** Саяхны даралтыг буцаах. Сервер талд 60 секундын цонхтой. */
+  undo: (date: string, tapId: number) =>
+    request<{ count: MenuCount }>("/public/menu/undo", {
+      method: "POST",
+      body: JSON.stringify({ date, tapId }),
     }),
 };
