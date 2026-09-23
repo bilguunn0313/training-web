@@ -6,12 +6,64 @@ import { MealChoice, MealSession } from "@/types/schema.types";
 
 export const SESSIONS: MealSession[] = ["breakfast", "lunch"];
 
+/**
+ * Сешн бүрийн өнгөний таних тэмдэг.
+ *
+ * Kiosk дээр хоёр товч 1.5 метрээс зогсож харахад ЯЛГАРАХ ёстой. Хэлбэр,
+ * үсэг хоёроос өнгө хамаагүй хурдан ялгагддаг тул өглөө/өдрийг өөр өнгөөр
+ * тэмдэглэв. Хоол тул дулаан өнгө сонгосон — цэнхэр-саарал нь эмнэлгийн
+ * бүртгэл шиг мэдрэмж өгдөг.
+ *
+ * Tailwind класс нэрийг эх кодоос уншдаг тул бүтэн нэрээр бичсэн —
+ * `text-${color}-500` гэж угсарвал build-д ороогүй ангилал болно.
+ */
+interface SessionAccent {
+  idleBorder: string;
+  icon: string;
+  lineLabel: string;
+  activeBg: string;
+  activeBorder: string;
+  activeShadow: string;
+  arrow: string;
+  choiceActive: string;
+}
+
 export const SESSION_CONFIG: Record<
   MealSession,
-  { label: string; short: string; icon: typeof Sunrise }
+  { label: string; short: string; icon: typeof Sunrise; accent: SessionAccent }
 > = {
-  breakfast: { label: "Өглөөний хоол", short: "Өглөө", icon: Sunrise },
-  lunch: { label: "Өдрийн хоол", short: "Өдөр", icon: Soup },
+  // Өглөө — алтлаг шар, нар мандахтай нийцнэ
+  breakfast: {
+    label: "Өглөөний хоол",
+    short: "Өглөө",
+    icon: Sunrise,
+    accent: {
+      idleBorder: "border-amber-300",
+      icon: "text-amber-500",
+      lineLabel: "text-amber-600",
+      activeBg: "bg-amber-600",
+      activeBorder: "border-amber-600",
+      activeShadow: "shadow-amber-600/25",
+      arrow: "border-t-amber-600",
+      choiceActive: "active:border-amber-500 active:bg-amber-50",
+    },
+  },
+  // Өдөр — гүн улбар шар, илүү тодорхой
+  lunch: {
+    label: "Өдрийн хоол",
+    short: "Өдөр",
+    icon: Soup,
+    accent: {
+      idleBorder: "border-orange-400",
+      icon: "text-orange-600",
+      lineLabel: "text-orange-700",
+      activeBg: "bg-orange-700",
+      activeBorder: "border-orange-700",
+      activeShadow: "shadow-orange-700/25",
+      arrow: "border-t-orange-700",
+      choiceActive: "active:border-orange-500 active:bg-orange-50",
+    },
+  },
 };
 
 export const CHOICES: MealChoice[] = ["meal_1", "meal_2", "both"];
@@ -66,4 +118,29 @@ export function choiceSubtitle(
   const second = dishNameFor(items, session, "meal_2");
   if (first && second) return `${first} + ${second}`;
   return "1-р + 2-р хоол";
+}
+
+// Kiosk дээр зөвхөн СОНГОХ боломжтой хоолыг харуулна.
+// Уух зүйл сонголтод ордоггүй тул жагсаалтад ч гаргахгүй.
+const SHOWN_ITEMS: { type: "meal_1" | "meal_2"; label: string }[] = [
+  { type: "meal_1", label: "1-р" },
+  { type: "meal_2", label: "2-р" },
+];
+
+/**
+ * Тухайн сешнд оруулсан цэсийг дэлгэцэнд харуулах мөрүүд болгоно.
+ *
+ * Хүн товч дарахаасаа ӨМНӨ юу өгөхийг харах ёстой — тиймээс сешний карт
+ * дээр шууд гаргана. Цэс ороогүй бол хоосон массив буцаах ба дуудагч тал
+ * юу ч зурахгүй.
+ */
+export function sessionMenuLines(
+  items: PublicMenuItem[],
+  session: MealSession
+): { label: string; name: string }[] {
+  return SHOWN_ITEMS.flatMap(({ type, label }) =>
+    items
+      .filter((i) => i.mealSession === session && i.itemType === type)
+      .map((i) => ({ label, name: i.name }))
+  );
 }

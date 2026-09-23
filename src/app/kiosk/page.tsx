@@ -10,6 +10,7 @@ import {
   CHOICE_CONFIG,
   choiceSubtitle,
   dishNameFor,
+  sessionMenuLines,
 } from "@/lib/menu-config";
 import { formatMongolianDate, tomorrowString } from "@/lib/date-mn";
 import { MealChoice, MealSession } from "@/types/schema.types";
@@ -188,8 +189,8 @@ export default function KioskPage() {
 
   if (loading) {
     return (
-      <div className="kiosk-root flex items-center justify-center bg-slate-100">
-        <Loader2 className="h-20 w-20 animate-spin text-slate-300" />
+      <div className="kiosk-root flex items-center justify-center bg-stone-100">
+        <Loader2 className="h-20 w-20 animate-spin text-stone-300" />
       </div>
     );
   }
@@ -263,7 +264,7 @@ export default function KioskPage() {
   const isOpen = expanded !== null;
 
   return (
-    <div className="kiosk-root flex flex-col bg-slate-100">
+    <div className="kiosk-root flex flex-col bg-stone-100">
       {/* ── Толгойн зурвас: терминалын таних тэмдэг ── */}
       {/* flex-wrap — нарийн (босоо) таблет дээр огноо доош бууна, халихгүй */}
       <header className="flex flex-wrap items-baseline gap-x-5 gap-y-1 bg-slate-900 px-[3vmin] py-[2.5vmin] text-white">
@@ -299,8 +300,11 @@ export default function KioskPage() {
           {SESSIONS.map((session) => {
             const config = SESSION_CONFIG[session];
             const Icon = config.icon;
+            const accent = config.accent;
             const count = menu?.count[session];
             const active = expanded === session;
+            // Тухайн өдөр энэ сешнд оруулсан хоолнууд
+            const lines = menu ? sessionMenuLines(menu.items, session) : [];
 
             return (
               <button
@@ -313,8 +317,8 @@ export default function KioskPage() {
                   isOpen ? "flex-row gap-5" : "flex-col gap-4"
                 } ${
                   active
-                    ? "border-brand-600 bg-brand-600 text-white shadow-xl shadow-brand-600/25"
-                    : "border-slate-200 bg-white text-slate-900 shadow-sm"
+                    ? `${accent.activeBorder} ${accent.activeBg} text-white shadow-xl ${accent.activeShadow}`
+                    : `${accent.idleBorder} bg-white text-slate-900 shadow-sm`
                 }`}
               >
                 <Icon
@@ -322,7 +326,7 @@ export default function KioskPage() {
                     isOpen
                       ? "h-[var(--k-icon-md)] w-[var(--k-icon-md)]"
                       : "h-[var(--k-icon-lg)] w-[var(--k-icon-lg)]"
-                  } ${active ? "text-white" : "text-brand-500"}`}
+                  } ${active ? "text-white" : accent.icon}`}
                   strokeWidth={1.5}
                 />
 
@@ -335,6 +339,27 @@ export default function KioskPage() {
                 >
                   {config.short.toUpperCase()}
                 </span>
+
+                {/* Тухайн өдрийн цэс — товч дарахаас ӨМНӨ харагдана.
+                    Сонголт нээгдэхэд нуугдана: доорх 3 товч хоолны нэрийг
+                    аль хэдийн харуулж байгаа тул давхардуулах хэрэггүй. */}
+                {!isOpen && lines.length > 0 && (
+                  <div className="flex w-full flex-col items-center gap-[0.6vmin] px-2">
+                    {lines.map((line, i) => (
+                      <span
+                        key={i}
+                        className="flex w-full items-baseline justify-center gap-2 text-[length:var(--k-sub)] leading-tight"
+                      >
+                        <span className={`shrink-0 font-bold ${accent.lineLabel}`}>
+                          {line.label}
+                        </span>
+                        <span className="line-clamp-1 font-medium text-slate-600">
+                          {line.name}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {!isOpen && !!count?.people && (
                   <span
@@ -351,7 +376,7 @@ export default function KioskPage() {
                 <span
                   className={`absolute -bottom-[18px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[18px] border-t-[18px] border-x-transparent transition-opacity duration-300 ${
                     active
-                      ? "border-t-brand-600 opacity-100"
+                      ? `${accent.arrow} opacity-100`
                       : "border-t-transparent opacity-0"
                   }`}
                 />
@@ -375,6 +400,11 @@ export default function KioskPage() {
           {CHOICES.map((choice, i) => {
             const config = CHOICE_CONFIG[choice];
             const Icon = config.icon;
+            // Порцын товч сонгосон сешний өнгийг өвлөнө — дээрх карттай
+            // холбоотой гэдэг нь нүдэнд шууд ойлгогдоно
+            const accent = expanded
+              ? SESSION_CONFIG[expanded].accent
+              : SESSION_CONFIG.lunch.accent;
             // Цэс ороогүй бол доод мөр огт гарахгүй — эс тэгвэл "1-р хоол"
             // гэсэн текст хоёр удаа давхарлана
             const subtitle =
@@ -388,14 +418,14 @@ export default function KioskPage() {
                 onClick={() => expanded && handleTap(expanded, choice)}
                 disabled={pending || !isOpen}
                 style={{ transitionDelay: isOpen ? `${i * 70}ms` : "0ms" }}
-                className={`flex min-h-0 flex-col items-center justify-center gap-[1vmin] overflow-hidden rounded-[2rem] border-4 border-slate-200 bg-white px-3 py-[2vmin] shadow-sm transition-all duration-300 active:scale-[0.97] active:border-brand-500 active:bg-brand-50 disabled:pointer-events-none ${
+                className={`flex min-h-0 flex-col items-center justify-center gap-[1vmin] overflow-hidden rounded-[2rem] border-4 border-slate-200 bg-white px-3 py-[2vmin] shadow-sm transition-all duration-300 active:scale-[0.97] disabled:pointer-events-none ${accent.choiceActive} ${
                   isOpen
                     ? "translate-y-0 opacity-100"
                     : "translate-y-6 opacity-0"
                 }`}
               >
                 <Icon
-                  className="h-[var(--k-icon-sm)] w-[var(--k-icon-sm)] shrink-0 text-brand-500"
+                  className={`h-[var(--k-icon-sm)] w-[var(--k-icon-sm)] shrink-0 ${accent.icon}`}
                   strokeWidth={1.5}
                 />
                 <span className="text-center text-[length:var(--k-choice)] font-black leading-tight tracking-tight text-slate-900">
